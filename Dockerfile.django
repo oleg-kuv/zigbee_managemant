@@ -1,0 +1,24 @@
+FROM python:3.10-slim
+
+# Устанавливаем UV
+RUN pip install uv
+
+WORKDIR /app
+
+# Копируем зависимости
+COPY pyproject.toml .
+
+# Устанавливаем зависимости через UV
+RUN uv pip install --system -e .
+
+# Копируем весь проект
+COPY . .
+
+# Создаем статическую директорию
+RUN mkdir -p /app/static
+
+# Создаем пользователя для безопасности
+RUN useradd -m -u 1000 django && chown -R django:django /app
+USER django
+
+EXPOSE 8000

@@ -1,0 +1,264 @@
+version: "3.8"
+
+x-common-variables: &common-variables
+  POSTGRES_DB: ${POSTGRES_DB:-zigbee_monitoring}
+  POSTGRES_USER: ${POSTGRES_USER:-zigbee_user}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zigbee_password}
+  REDIS_HOST: ${REDIS_HOST:-redis}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+  KAFKA_SENSOR_RAW_TOPIC: ${KAFKA_SENSOR_RAW_TOPIC:-sensor-raw}
+  MQTT_BROKER_HOST: ${MQTT_BROKER_HOST:-mosquitto}
+  MQTT_BROKER_PORT: ${MQTT_BROKER_PORT:-1883}
+  MQTT_ZIGBEE2MQTT_TOPIC: ${MQTT_ZIGBEE2MQTT_TOPIC:-zigbee2mqtt/#}
+
+services:
+  # --- Базовые сервисы (всегда запускаются) ---
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: zigbee-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zigbee_monitoring}
+      POSTGRES_USER: ${POSTGRES_USER:-zigbee_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zigbee_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zigbee_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: zigbee-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zigbee-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 5
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=ruok,srvr,stat"
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc 127.0.0.1 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  kafka:
+    image: bitnamilegacy/kafka:3.4
+    container_name: zigbee-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+
+    environment:
+      # === ZooKeeper mode ===
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+
+      # === Listeners ===
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+
+      # === Single broker safe defaults ===
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # === Topics ===
+      KAFKA_CFG_NUM_PARTITIONS: 3
+      KAFKA_CFG_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+      # === Logs ===
+      KAFKA_CFG_LOG_RETENTION_HOURS: 168
+      KAFKA_CFG_LOG_RETENTION_BYTES: 10737418240
+
+    ports:
+      - "9092:9092"
+
+    volumes:
+      - .kafka/data:/bitnami/kafka
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: zigbee-kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: zigbee-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_READONLY: "false"
+      DYNAMIC_CONFIG_ENABLED: "true"
+      AUTH_TYPE: "DISABLED"
+    depends_on:
+      - kafka
+      - zookeeper
+    restart: unless-stopped
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: zigbee-mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mosquitto_pub",
+          "-h",
+          "localhost",
+          "-p",
+          "1883",
+          "-t",
+          "health",
+          "-m",
+          "ping",
+          "-k",
+          "5",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: zigbee-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: "grafana-clock-panel"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - postgres
+
+  # --- Django Core Services ---
+  admin-panel:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+    container_name: zigbee-admin-panel
+    environment:
+      <<: *common-variables
+      DJANGO_SETTINGS_MODULE: zigbee_core.settings
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      SERVICE_TYPE: admin_panel
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py create_initial_data &&
+             python manage.py createsuperuser --noinput || true &&
+             gunicorn zigbee_core.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+
+  temperature-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+    container_name: zigbee-temperature-consumer
+    environment:
+      <<: *common-variables
+      DJANGO_SETTINGS_MODULE: zigbee_core.settings
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      SERVICE_TYPE: temperature_consumer
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    command: celery -A zigbee_core worker --loglevel=info -Q kafka_consumer
+
+  # --- PROFILE: dev (только для разработки) ---
+  sensor-simulator:
+    profiles: ["dev"]
+    build:
+      context: .
+      dockerfile: Dockerfile.simulator
+    container_name: zigbee-sensor-simulator
+    environment:
+      MQTT_BROKER_HOST: ${MQTT_BROKER_HOST:-mosquitto}
+      MQTT_BROKER_PORT: ${MQTT_BROKER_PORT:-1883}
+      SIMULATOR_NUM_DEVICES: ${SIMULATOR_NUM_DEVICES:-5}
+      SIMULATOR_UPDATE_INTERVAL: ${SIMULATOR_UPDATE_INTERVAL:-30}
+      SIMULATOR_MQTT_TOPIC_PREFIX: ${SIMULATOR_MQTT_TOPIC_PREFIX:-zigbee2mqtt}
+    depends_on:
+      - mosquitto
+    command: python -m main
+
+  # --- PROFILE: production (для реальных устройств) ---
+  kafka-producer:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    container_name: zigbee-kafka-producer
+    environment:
+      <<: *common-variables
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+    restart: unless-stopped
+    command: python -m main
+
+volumes:
+  postgres_data:
+  mosquitto_data:
+  mosquitto_log:
+  grafana_data:
+
+networks:
+  default:
+    name: zigbee-network
+    driver: bridge

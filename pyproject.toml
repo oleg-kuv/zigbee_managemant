@@ -1,0 +1,52 @@
+[project]
+name = "zigbee-environment-station"
+version = "0.1.0"
+description = "Zigbee Environmental Monitoring Station"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Django",
+    "django-environ",
+    "celery",
+    "redis",
+    "confluent-kafka",
+    "psycopg[binary]",
+    "timescaledb",
+    "paho-mqtt",
+    "djangorestframework",
+    "django-cors-headers",
+    "django-filter",
+    "Faker",  # Для симулятора
+]
+
+[project.optional-dependencies]
+dev = [
+    "django-debug-toolbar>=4.2.0",
+    "pytest>=7.4.0",
+    "pytest-django>=4.5.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+# Конфигурация UV
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "zigbee_core.settings"
+python_files = ["tests.py", "test_*.py"]
+addopts = "-v --cov=zigbee_core --cov-report=html"
