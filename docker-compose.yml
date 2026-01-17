@@ -2,8 +2,8 @@ version: "3.8"
 
 x-common-variables: &common-variables
   POSTGRES_DB: ${POSTGRES_DB:-zigbee_monitoring}
-  POSTGRES_USER: ${POSTGRES_USER:-zigbee_user}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zigbee_password}
+  POSTGRES_USER: ${POSTGRES_USER:-zigbeeser}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zigbeessword}
   REDIS_HOST: ${REDIS_HOST:-redis}
   REDIS_PORT: ${REDIS_PORT:-6379}
   KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
@@ -19,15 +19,20 @@ services:
     container_name: zigbee-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-zigbee_monitoring}
-      POSTGRES_USER: ${POSTGRES_USER:-zigbee_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zigbee_password}
+      POSTGRES_USER: ${POSTGRES_USER:-zigbeeser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zigbeessword}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres/data:/var/lib/postgresql/data
+      - ./postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zigbee_user}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-zigbeeser} -d ${POSTGRES_DB:-zigbee_monitoring}",
+        ]
+
       interval: 10s
       timeout: 5s
       retries: 5
@@ -95,7 +100,7 @@ services:
       - "9092:9092"
 
     volumes:
-      - .kafka/data:/bitnami/kafka
+      - ./kafka/data:/bitnami/kafka
 
     healthcheck:
       test:
