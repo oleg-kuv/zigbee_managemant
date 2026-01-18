@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Callable
+import time
+from typing import Any, Callable, Optional
 
 import paho.mqtt.client as mqtt
 
@@ -14,7 +15,7 @@ class MQTTClient:
         self.host = host
         self.port = port
         self.client_id = client_id
-        self.client = None
+        self.client: Optional[mqtt.Client] = None
         self.connected = False
 
     def connect(self) -> bool:
@@ -31,9 +32,7 @@ class MQTTClient:
             self.client.loop_start()
 
             # Ждем подключения
-            import time
-
-            for _ in range(10):  # 10 попыток по 0.5 секунды
+            for _ in range(10):
                 if self.connected:
                     logger.info(f"Connected to MQTT broker at {self.host}:{self.port}")
                     return True
@@ -46,20 +45,22 @@ class MQTTClient:
             logger.error(f"Failed to connect to MQTT broker: {e}")
             return False
 
-    def _on_connect(self, client, userdata, flags, rc):
+    def _on_connect(
+        self, client: mqtt.Client, userdata: Any, flags: Any, rc: int
+    ) -> None:
         """Обработчик подключения к MQTT"""
         if rc == 0:
             self.connected = True
         else:
             logger.error(f"MQTT connection failed with code {rc}")
 
-    def _on_disconnect(self, client, userdata, rc):
+    def _on_disconnect(self, client: mqtt.Client, userdata: Any, rc: int) -> None:
         """Обработчик отключения от MQTT"""
         self.connected = False
         if rc != 0:
             logger.warning(f"MQTT disconnected unexpectedly with code {rc}")
 
-    def _on_publish(self, client, userdata, mid):
+    def _on_publish(self, client: mqtt.Client, userdata: Any, mid: int) -> None:
         """Обработчик успешной публикации"""
         logger.debug(f"Message published with mid: {mid}")
 
@@ -71,12 +72,10 @@ class MQTTClient:
 
         try:
             result = self.client.publish(topic, json.dumps(payload), qos=qos)
-
-            # Ждем подтверждения публикации
             result.wait_for_publish(timeout=2.0)
 
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.debug(f"Published to {topic}: {payload}")
+                logger.debug(f"Published to {topic}")
                 return True
             else:
                 logger.error(f"Failed to publish to {topic}: error code {result.rc}")
@@ -101,7 +100,7 @@ class MQTTClient:
             logger.error(f"Failed to subscribe to {topic}: {e}")
             return False
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Отключение от MQTT брокера"""
         if self.client:
             self.client.loop_stop()

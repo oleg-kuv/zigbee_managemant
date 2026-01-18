@@ -211,3 +211,120 @@ TimescaleDB hypertable для хранения измерений Zigbee дат�
 Уникальность: (receive_time, ieee_address, generated_time)
 Компрессия: через 30 дней
 ';
+-- ===== FUNCTIONS FOR GRAFANA =====
+
+-- Функция для получения статистики по часам
+CREATE OR REPLACE FUNCTION get_hourly_stats(
+    p_hours_back integer DEFAULT 24
+)
+RETURNS TABLE (
+    hour_start timestamptz,
+    device_type text,
+    measurement_count bigint
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH hourly_data AS (
+        SELECT 
+            date_trunc('hour', generated_time) as hour_start,
+            CASE 
+                WHEN data->>'temperature' IS NOT NULL THEN 'temperature'
+                WHEN data->>'occupancy' IS NOT NULL THEN 'motion'
+                WHEN data->>'state' IS NOT NULL THEN 'switch'
+                ELSE 'other'
+            END as device_type,
+            COUNT(*) as measurement_count
+        FROM sensor_measurements
+        WHERE generated_time > NOW() - (p_hours_back || ' hours')::interval
+        GROUP BY 1, 2
+    )
+    SELECT 
+        hour_start,
+        device_type,
+        measurement_count
+    FROM hourly_data
+    ORDER BY hour_start DESC, device_type;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Функция для получения последних данных всех устройств
+CREATE OR REPLACE FUNCTION get_latest_device_data()
+RETURNS TABLE (
+    ieee_address text,
+    friendly_name text,
+    device_type text,
+    last_seen timestamptz,
+    battery float,
+    linkquality integer,
+    temperature float,
+    humidity float,
+    occupancy boolean,
+    state text,
+    power float
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH latest AS (
+        SELECT DISTINCT ON (sm.ieee_address)
+            sm.ieee_address,
+            sm.generated_time,
+            sm.data
+        FROM sensor_measurements sm
+        ORDER BY sm.ieee_address, sm.generated_time DESC
+    )
+    SELECT 
+        l.ieee_address,
+        COALESCE(l.data->'device'->>'friendlyName', 'Unknown') as friendly_name,
+        CASE 
+            WHEN l.data->>'temperature' IS NOT NULL THEN 'temperature'
+            WHEN l.data->>'occupancy' IS NOT NULL THEN 'motion'
+            WHEN l.data->>'state' IS NOT NULL THEN 'switch'
+            ELSE 'unknown'
+        END as device_type,
+        l.generated_time as last_seen,
+        (l.data->>'battery')::float as battery,
+        (l.data->>'linkquality')::integer as linkquality,
+        (l.data->>'temperature')::float as temperature,
+        (l.data->>'humidity')::float as humidity,
+        (l.data->>'occupancy')::boolean as occupancy,
+        l.data->>'state' as state,
+        (l.data->>'power')::float as power
+    FROM latest l
+    ORDER BY l.generated_time DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Представление для последних данных устройств (удобно для Grafana)
+CREATE OR REPLACE VIEW latest_device_summary AS
+SELECT * FROM get_latest_device_data();
+
+-- Представление для статистики батареи
+CREATE OR REPLACE VIEW battery_status AS
+SELECT 
+    ieee_address,
+    (data->>'battery')::float as battery_level,
+    generated_time,
+    CASE 
+        WHEN (data->>'battery')::float > 70 THEN 'high'
+        WHEN (data->>'battery')::float > 30 THEN 'medium'
+        ELSE 'low'
+    END as battery_status
+FROM sensor_measurements
+WHERE data->>'battery' IS NOT NULL
+  AND generated_time > NOW() - INTERVAL '24 hours'
+ORDER BY generated_time DESC;
+
+-- Функция для чистки старых данных (автоматическая)
+CREATE OR REPLACE FUNCTION cleanup_old_data(p_days_to_keep integer DEFAULT 90)
+RETURNS integer AS $$
+DECLARE
+    deleted_count integer;
+BEGIN
+    DELETE FROM sensor_measurements
+    WHERE generated_time < NOW() - (p_days_to_keep || ' days')::interval;
+    
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql;

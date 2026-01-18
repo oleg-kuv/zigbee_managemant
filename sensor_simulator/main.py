@@ -2,12 +2,13 @@ import logging
 import random
 import signal
 import time
+from typing import Any
 
 from config import SimulatorConfig
-from motion_sensor import MotionSensor
+from devices.motion_sensor import MotionSensor
+from devices.switch_device import SwitchDevice
+from devices.temperature_sensor import TemperatureSensor
 from mqtt_client import MQTTClient
-from switch_device import SwitchDevice
-from temperature_sensor import TemperatureSensor
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -21,29 +22,34 @@ class SensorSimulator:
     def __init__(self, config: SimulatorConfig):
         self.config = config
         self.devices = []
-        self.mqtt_client = None
+        self.mqtt_client: MQTTClient = None
         self.running = False
 
         # Обработка сигналов для graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, signum: int, frame: Any) -> None:
         """Обработчик сигналов для graceful shutdown"""
         logger.info(f"Received signal {signum}, shutting down...")
         self.running = False
 
-    def setup_mqtt(self):
+    def setup_mqtt(self) -> bool:
         """Настройка MQTT клиента"""
-        self.mqtt_client = MQTTClient(
-            host=self.config.mqtt_host,
-            port=self.config.mqtt_port,
-            client_id="sensor_simulator",
-        )
+        try:
+            self.mqtt_client = MQTTClient(
+                host=self.config.mqtt_host,
+                port=self.config.mqtt_port,
+                client_id="sensor_simulator",
+            )
 
-        return self.mqtt_client.connect()
+            return self.mqtt_client.connect()
 
-    def create_devices(self):
+        except Exception as e:
+            logger.error(f"Failed to create MQTT client: {e}")
+            return False
+
+    def create_devices(self) -> None:
         """Создание имитируемых устройств разных типов"""
         locations = [
             "living_room",
@@ -74,32 +80,24 @@ class SensorSimulator:
                 friendly_name = f"switch_{i + 1:03d}"
                 device = SwitchDevice(ieee_address, friendly_name, location)
 
-            # Добавляем ссылку на конфиг для switch устройств
-            if hasattr(device, "config"):
-                device.config = self.config
-
             self.devices.append(device)
 
             logger.info(
                 f"Created {device_type} device: {friendly_name} at {location} ({ieee_address})"
             )
 
-    def publish_device_data(self, device):
+    def publish_device_data(self, device: Any) -> None:
         """Публикация данных устройства в MQTT"""
         try:
             payload = device.get_full_payload()
             topic = device.get_mqtt_topic(self.config.topic_prefix)
 
-            # Имитация потери пакетов (3% вероятность для реализма)
+            # Имитация потери пакетов (3% вероятность)
             if random.random() > 0.03:
                 success = self.mqtt_client.publish(topic, payload, qos=1)
 
                 if success:
                     logger.debug(f"Published to {topic}")
-
-                    # Симуляция разряда батареи
-                    if hasattr(device, "simulate_battery_drain"):
-                        device.simulate_battery_drain()
                 else:
                     logger.warning(f"Failed to publish to {topic}")
 
@@ -110,12 +108,10 @@ class SensorSimulator:
         except Exception as e:
             logger.error(f"Failed to publish data for {device.friendly_name}: {e}")
 
-    def _simulate_switch_command(self, switch_device):
+    def _simulate_switch_command(self, switch_device: SwitchDevice) -> None:
         """Имитация команды для управляемого устройства"""
-        # Случайное переключение состояния
         new_state = "ON" if switch_device.state == "OFF" else "OFF"
 
-        # Публикация команды (имитация управления извне)
         command_topic = f"{self.config.topic_prefix}/{switch_device.friendly_name}/set"
         command_payload = {"state": new_state}
 
@@ -125,7 +121,7 @@ class SensorSimulator:
             )
             switch_device.set_state(new_state)
 
-    def run(self):
+    def run(self) -> None:
         """Основной цикл симулятора"""
         logger.info("Starting sensor simulator...")
 
@@ -151,9 +147,9 @@ class SensorSimulator:
                 for i, device in enumerate(self.devices):
                     self.publish_device_data(device)
 
-                    # Небольшая задержка между устройствами для реализма
+                    # Небольшая задержка между устройствами
                     if i < len(self.devices) - 1:
-                        time.sleep(random.uniform(0.1, 0.5))
+                        time.sleep(random.uniform(0.1, 0.3))
 
                 # Логирование каждые 10 циклов
                 if cycle_count % 10 == 0:
@@ -171,7 +167,7 @@ class SensorSimulator:
         finally:
             self.shutdown()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Корректное завершение работы симулятора"""
         logger.info("Shutting down simulator...")
 
@@ -181,7 +177,7 @@ class SensorSimulator:
         logger.info("Simulator stopped.")
 
 
-def main():
+def main() -> None:
     """Точка входа"""
     config = SimulatorConfig.from_env()
     simulator = SensorSimulator(config)
