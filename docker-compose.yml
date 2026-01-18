@@ -202,33 +202,28 @@ services:
              python manage.py createsuperuser --noinput || true &&
              gunicorn zigbee_core.wsgi:application --bind 0.0.0.0:8000 --workers 3"
 
-  temperature-consumer:
+  kafka-consumer:
     build:
       context: .
-      dockerfile: Dockerfile.django
-    container_name: zigbee-temperature-consumer
+      dockerfile: ./kafka_consumer
+    container_name: zigbee-kafka-consumer
     environment:
       <<: *common-variables
-      DJANGO_SETTINGS_MODULE: zigbee_core.settings
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      SERVICE_TYPE: temperature_consumer
-    volumes:
-      - .:/app
+      KAFKA_CONSUMER_GROUP_ID: ${KAFKA_CONSUMER_GROUP_ID:-sensor-consumer-group}
+      CONSUMER_BATCH_SIZE: ${CONSUMER_BATCH_SIZE:-100}
+      CONSUMER_BATCH_TIMEOUT: ${CONSUMER_BATCH_TIMEOUT:-5.0}
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       kafka:
         condition: service_started
-    command: celery -A zigbee_core worker --loglevel=info -Q kafka_consumer
+    restart: unless-stopped
 
   # --- PROFILE: dev (только для разработки) ---
   sensor-simulator:
     profiles: ["dev"]
     build:
-      context: .
-      dockerfile: Dockerfile.simulator
+      context: ./sensor_simulator
     container_name: zigbee-sensor-simulator
     environment:
       MQTT_BROKER_HOST: ${MQTT_BROKER_HOST:-mosquitto}
@@ -243,8 +238,7 @@ services:
   # --- PROFILE: production (для реальных устройств) ---
   kafka-producer:
     build:
-      context: .
-      dockerfile: Dockerfile.producer
+      context: ./kafka_producer
     container_name: zigbee-kafka-producer
     environment:
       <<: *common-variables
