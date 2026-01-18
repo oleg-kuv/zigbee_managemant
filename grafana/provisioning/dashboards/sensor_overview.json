@@ -1,0 +1,214 @@
+{
+    "title": "Zigbee Датчики - Мониторинг",
+    "uid": "zigbee-sensors",
+    "version": 1,
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timezone": "browser",
+    "refresh": "10s",
+    "tags": [
+        "zigbee",
+        "iot",
+        "sensors"
+    ],
+    "editable": true,
+    "gnetId": null,
+    "graphTooltip": 1,
+    "links": [],
+    "panels": [
+        {
+            "id": 1,
+            "title": "Температура",
+            "type": "timeseries",
+            "datasource": "PostgreSQL",
+            "targets": [
+                {
+                    "rawSql": "SELECT\n  generated_time as \"time\",\n  ieee_address as metric,\n  (data->>'temperature')::double precision as temperature\nFROM sensor_measurements\nWHERE data->>'temperature' IS NOT NULL\n  AND generated_time > NOW() - INTERVAL '1 hour'\nORDER BY generated_time",
+                    "format": "time_series",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "celsius",
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "linear",
+                        "barAlignment": 0,
+                        "lineWidth": 1,
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "spanNulls": false,
+                        "showPoints": "auto",
+                        "pointSize": 5,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        },
+                        "axisPlacement": "auto"
+                    }
+                }
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "id": 2,
+            "title": "Влажность",
+            "type": "timeseries",
+            "datasource": "PostgreSQL",
+            "targets": [
+                {
+                    "rawSql": "SELECT\n  generated_time as \"time\",\n  ieee_address as metric,\n  (data->>'humidity')::double precision as humidity\nFROM sensor_measurements\nWHERE data->>'humidity' IS NOT NULL\n  AND generated_time > NOW() - INTERVAL '1 hour'\nORDER BY generated_time",
+                    "format": "time_series",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "linear",
+                        "barAlignment": 0,
+                        "lineWidth": 1,
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "spanNulls": false,
+                        "showPoints": "auto",
+                        "pointSize": 5,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        },
+                        "axisPlacement": "auto"
+                    }
+                }
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            }
+        },
+        {
+            "id": 3,
+            "title": "Батарея",
+            "type": "timeseries",
+            "datasource": "PostgreSQL",
+            "targets": [
+                {
+                    "rawSql": "SELECT\n  generated_time as \"time\",\n  ieee_address as metric,\n  (data->>'battery')::double precision as battery\nFROM sensor_measurements\nWHERE data->>'battery' IS NOT NULL\n  AND generated_time > NOW() - INTERVAL '6 hours'\nORDER BY generated_time",
+                    "format": "time_series",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "linear",
+                        "barAlignment": 0,
+                        "lineWidth": 1,
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "spanNulls": false,
+                        "showPoints": "auto",
+                        "pointSize": 5,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        },
+                        "axisPlacement": "auto"
+                    }
+                }
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 8
+            }
+        },
+        {
+            "id": 4,
+            "title": "Качество связи",
+            "type": "timeseries",
+            "datasource": "PostgreSQL",
+            "targets": [
+                {
+                    "rawSql": "SELECT\n  generated_time as \"time\",\n  ieee_address as metric,\n  (data->>'linkquality')::double precision as linkquality\nFROM sensor_measurements\nWHERE data->>'linkquality' IS NOT NULL\n  AND generated_time > NOW() - INTERVAL '1 hour'\nORDER BY generated_time",
+                    "format": "time_series",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineInterpolation": "linear",
+                        "barAlignment": 0,
+                        "lineWidth": 1,
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "spanNulls": false,
+                        "showPoints": "auto",
+                        "pointSize": 5,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        },
+                        "axisPlacement": "auto"
+                    }
+                }
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 8
+            }
+        }
+    ],
+    "templating": {
+        "list": [
+            {
+                "name": "device",
+                "label": "Устройство",
+                "type": "query",
+                "datasource": "PostgreSQL",
+                "refresh": 1,
+                "options": [],
+                "current": {
+                    "value": "",
+                    "text": "Все"
+                },
+                "query": "SELECT DISTINCT ieee_address FROM sensor_measurements ORDER BY ieee_address",
+                "includeAll": true,
+                "multi": true,
+                "allValue": null
+            }
+        ]
+    }
+}
