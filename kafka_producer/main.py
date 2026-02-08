@@ -159,6 +159,11 @@ class MQTTKafkaBridge:
 
     def _on_mqtt_message(self, client, userdata, msg):
         """Callback при получении сообщения из MQTT"""
+        # Пропускаем bridge топики
+        if "bridge" in msg.topic:
+            logger.debug(f"Skipping bridge topic: {msg.topic}")
+            return
+
         self.message_counter += 1
 
         try:
@@ -204,32 +209,59 @@ class MQTTKafkaBridge:
     def _enrich_message(
         self, mqtt_topic: str, payload: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Обогащение сообщения метаданными"""
+        """
+        Обогащение сообщения метаданными.
+        Извлекает IEEE адрес из названия топика.
+        """
+        # Извлекаем IEEE адрес из топика
+        # Пример топика: 'zigbee2mqtt/0xa4c138e53b478e15'
+        topic_parts = mqtt_topic.split("/")
+        ieee_address = topic_parts[-1] if len(topic_parts) > 1 else "unknown"
+
         return {
             "metadata": {
                 "mqtt_topic": mqtt_topic,
+                "ieee_address": ieee_address,
                 "received_at": time.time(),
                 "timestamp_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "source": self._detect_source(mqtt_topic, payload),
+                "source": self._detect_source(mqtt_topic, payload, ieee_address),
                 "message_id": f"msg_{int(time.time() * 1000)}_{self.message_counter}",
             },
-            "payload": payload,
+            "payload": payload,  # Оригинальный payload от Zigbee2MQTT
         }
 
-    def _detect_source(self, mqtt_topic: str, payload: Dict[str, Any]) -> str:
-        """Определение источника данных"""
-        if "device" in payload:
-            device_info = payload.get("device", {})
-            if device_info.get("model"):
-                return f"zigbee_device:{device_info.get('model')}"
+    def _detect_source(
+        self, mqtt_topic: str, payload: Dict[str, Any], ieee_address: str
+    ) -> str:
+        """
+        Определение источника данных на основе полей payload.
+        """
+        # Проверяем, не является ли это топиком моста (bridge)
+        if "bridge" in mqtt_topic:
+            return "zigbee2mqtt_bridge"
 
-        # Определяем по топику
-        if "zigbee2mqtt" in mqtt_topic:
-            return "zigbee2mqtt"
-        elif "simulator" in mqtt_topic:
-            return "sensor_simulator"
+        # Определяем тип устройства по полям в payload
+        # 1. Температурно-влажностный датчик (ваш zg-227z)
+        if "temperature" in payload and "humidity" in payload:
+            return f"zigbee_sensor_temp_hum:{ieee_address}"
+        # 2. Датчик движения
+        elif "occupancy" in payload:
+            return f"zigbee_sensor_motion:{ieee_address}"
+        # 3. Выключатель/розетка
+        elif "state" in payload and "power" in payload:
+            return f"zigbee_switch:{ieee_address}"
+        # 4. Простой выключатель
+        elif "state" in payload:
+            return f"zigbee_switch_simple:{ieee_address}"
+        # 5. Датчик протечки
+        elif "water_leak" in payload:
+            return f"zigbee_sensor_water:{ieee_address}"
+        # 6. Контактный датчик
+        elif "contact" in payload:
+            return f"zigbee_sensor_contact:{ieee_address}"
+        # 7. Универсальный источник для неизвестных устройств
         else:
-            return "unknown"
+            return f"zigbee_device:{ieee_address}"
 
     def _send_to_kafka(self, message: Dict[str, Any]):
         """Отправка сообщения в Kafka"""

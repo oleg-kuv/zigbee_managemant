@@ -44,7 +44,7 @@ class MotionSensor(ZigbeeDevice):
             "illuminance_lux": round(self.illuminance, 1),
             "device": {
                 "friendlyName": self.friendly_name,
-                "model": "RTCGQ11LM",
+                "model": "virtual",
                 "ieee_address": self.ieee_address,
             },
         }

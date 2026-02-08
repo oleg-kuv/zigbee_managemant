@@ -1,10 +1,15 @@
+"""
+Kafka Consumer для обработки данных Zigbee датчиков и сохранения в TimescaleDB.
+Обрабатывает новый формат сообщений: {"metadata": {...}, "payload": {...}}
+"""
+
 import json
 import logging
 import signal
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from confluent_kafka import Consumer, KafkaError
@@ -54,29 +59,31 @@ class ConsumerConfig:
 
 
 class SensorDataProcessor:
-    """Обработчик данных датчиков"""
+    """Обработчик данных датчиков для нового формата сообщений"""
 
     @staticmethod
-    def extract_device_info(payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Извлечение информации об устройстве из payload"""
-        device_info = payload.get("device", {})
+    def extract_device_info(metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Извлечение информации об устройстве из METADATA (а не из payload!)"""
+        # IEEE адрес теперь приходит в metadata от Producer'а
+        ieee_address = metadata.get("ieee_address", "unknown")
+
+        # Извлекаем friendly_name из mqtt_topic как запасной вариант
+        mqtt_topic = metadata.get("mqtt_topic", "")
+        friendly_name = mqtt_topic.split("/")[-1] if mqtt_topic else "unknown"
 
         return {
-            "ieee_address": device_info.get("ieee_address", "unknown"),
-            "friendly_name": device_info.get("friendlyName", "unknown"),
-            "model": device_info.get("model", "unknown"),
+            "ieee_address": ieee_address,
+            "friendly_name": metadata.get("friendly_name", friendly_name),
+            "model": "unknown",  # В новом формате модели нет
         }
 
     @staticmethod
     def extract_sensor_data(payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Извлечение данных измерений из payload"""
-        # Копируем весь payload, удаляем поле device если оно есть
-        data = payload.copy()
-        data.pop("device", None)
-
-        # Очищаем данные от несериализуемых типов
+        """Извлечение данных измерений из PAYLOAD"""
+        # payload содержит чистые данные датчика из Zigbee2MQTT
+        # Очищаем от несериализуемых типов
         cleaned_data = {}
-        for key, value in data.items():
+        for key, value in payload.items():
             if isinstance(value, (str, int, float, bool, type(None))):
                 cleaned_data[key] = value
             else:
@@ -92,57 +99,64 @@ class SensorDataProcessor:
         return cleaned_data
 
     @staticmethod
-    def parse_timestamp(timestamp_str: str) -> datetime:
-        """Парсинг timestamp из различных форматов"""
+    def parse_timestamp(timestamp_val: Any) -> datetime:
+        """Универсальный парсинг timestamp из различных форматов"""
         try:
-            # Пытаемся парсить ISO формат
-            if "T" in timestamp_str:
-                return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-            # Пытаемся парсить Unix timestamp (в миллисекундах или секундах)
-            elif timestamp_str.isdigit():
-                ts = float(timestamp_str)
-                # Если больше 10^10 - это миллисекунды
-                if ts > 10**10:
-                    return datetime.fromtimestamp(ts / 1000)
-                else:
-                    return datetime.fromtimestamp(ts)
-            else:
-                # Пробуем другие форматы
+            if isinstance(timestamp_val, (int, float)):
+                # Unix timestamp (секунды или миллисекунды)
+                if timestamp_val > 1e10:  # Это миллисекунды
+                    return datetime.fromtimestamp(timestamp_val / 1000, tz=timezone.utc)
+                else:  # Секунды
+                    return datetime.fromtimestamp(timestamp_val, tz=timezone.utc)
+            elif isinstance(timestamp_val, str):
+                # Пытаемся парсить ISO формат
+                if "T" in timestamp_val:
+                    return datetime.fromisoformat(timestamp_val.replace("Z", "+00:00"))
+                # Пытаемся другие форматы
                 for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"]:
                     try:
-                        return datetime.strptime(timestamp_str, fmt)
+                        dt = datetime.strptime(timestamp_val, fmt)
+                        return dt.replace(tzinfo=timezone.utc)
                     except ValueError:
                         continue
         except Exception as e:
-            logger.warning(f"Failed to parse timestamp '{timestamp_str}': {e}")
+            logger.warning(f"Failed to parse timestamp '{timestamp_val}': {e}")
 
-        # Возвращаем текущее время как fallback
-        return datetime.now()
+        # Возвращаем текущее время UTC как fallback
+        return datetime.now(tz=timezone.utc)
 
     def process_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Обработка одного сообщения из Kafka"""
+        """Обработка нового формата сообщения: {metadata: {...}, payload: {...}}"""
         try:
+            # Новый формат: разделение на metadata и payload
             metadata = message.get("metadata", {})
-            payload = message.get("payload", {})
+            payload = message.get("payload", {})  # Это оригинальные данные Zigbee2MQTT
 
-            # Извлекаем информацию об устройстве
-            device_info = self.extract_device_info(payload)
+            # Извлекаем информацию об устройстве из METADATA
+            device_info = self.extract_device_info(metadata)
 
-            # Извлекаем данные измерений
+            # Извлекаем данные измерений из PAYLOAD
             sensor_data = self.extract_sensor_data(payload)
 
-            # Получаем временные метки
-            received_at = self.parse_timestamp(
-                metadata.get("timestamp_iso", str(time.time()))
+            # Получаем временные метки из metadata
+            received_at = self.parse_timestamp(metadata.get("received_at"))
+
+            # generated_time можно взять из timestamp_iso, если нет - использовать received_at
+            generated_time = self.parse_timestamp(
+                metadata.get("timestamp_iso", metadata.get("received_at"))
             )
 
-            # Генерируем время если его нет в данных
-            generated_time = received_at
-            if "last_seen" in sensor_data:
-                generated_time = self.parse_timestamp(str(sensor_data.pop("last_seen")))
+            # Если ieee_address всё ещё unknown, пробуем извлечь из friendly_name
+            ieee_address = device_info["ieee_address"]
+            if ieee_address == "unknown":
+                # Пробуем извлечь из friendly_name (может быть IEEE адресом)
+                friendly_name = device_info["friendly_name"]
+                if friendly_name.startswith("0x") and len(friendly_name) == 18:
+                    ieee_address = friendly_name
+                    device_info["ieee_address"] = ieee_address
 
             return {
-                "ieee_address": device_info["ieee_address"],
+                "ieee_address": ieee_address,
                 "generated_time": generated_time,
                 "receive_time": received_at,
                 "data": sensor_data,
@@ -150,12 +164,11 @@ class SensorDataProcessor:
                     "mqtt_topic": metadata.get("mqtt_topic", "unknown"),
                     "source": metadata.get("source", "unknown"),
                     "friendly_name": device_info["friendly_name"],
-                    "model": device_info["model"],
                 },
             }
 
         except Exception as e:
-            logger.error(f"Failed to process message: {e}")
+            logger.error(f"Failed to process message: {e}", exc_info=True)
             return None
 
 
@@ -368,10 +381,23 @@ class KafkaSensorConsumer:
                         # Декодируем сообщение
                         message_data = json.loads(msg.value().decode("utf-8"))
 
+                        # Проверяем, что это новый формат сообщения
+                        if (
+                            not isinstance(message_data, dict)
+                            or "metadata" not in message_data
+                        ):
+                            logger.warning(
+                                f"Unexpected message format: {type(message_data)}"
+                            )
+                            self.messages_failed += 1
+                            continue
+
                         # Обрабатываем сообщение
                         processed_message = self.processor.process_message(message_data)
                         if processed_message:
                             batch_messages.append(processed_message)
+                        else:
+                            self.messages_failed += 1
 
                         # Если батч достиг размера или времени - сохраняем
                         if (

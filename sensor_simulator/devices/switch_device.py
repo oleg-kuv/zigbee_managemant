@@ -50,7 +50,7 @@ class SwitchDevice(ZigbeeDevice):
             "energy": round(self.energy, 4),
             "device": {
                 "friendlyName": self.friendly_name,
-                "model": "SNZB-01" if self.device_type == "switch" else "ZNCLDJ12LM",
+                "model": "virtual" if self.device_type == "switch" else "virtual",
                 "ieee_address": self.ieee_address,
             },
         }

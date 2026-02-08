@@ -1,0 +1,27 @@
+version: 5
+homeassistant:
+  enabled: false
+permit_join: true
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://localhost:1883
+serial:
+  port: /dev/tty.usbserial-2140
+  adapter: zstack
+  baudrate: 115200
+frontend:
+  enabled: false
+  host: 127.0.0.1
+  port: 8082
+advanced:
+  log_level: info
+  output: json
+  output_template: >-
+    {"metadata": {"ieee_address": "{{ device.ieee_address }}", "friendly_name":
+    "{{ friendly_name }}", "model": "{{ device.model }}" }, "timestamp": {{
+    now() | timestamp }}, "data": {{ value_json | tojson }} }
+devices:
+  '0xa4c138e53b478e15':
+    friendly_name: '0xa4c138e53b478e15'
+  '0xa4c13851d88beb21':
+    friendly_name: '0xa4c13851d88beb21'

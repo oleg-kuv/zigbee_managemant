@@ -1,0 +1,18 @@
+{
+    "0xa4c138e53b478e15": {
+        "temperature": 23.3,
+        "humidity": 25,
+        "battery": 100,
+        "temperature_unit": "celsius",
+        "temperature_calibration": 0,
+        "humidity_calibration": 0
+    },
+    "0xa4c13851d88beb21": {
+        "battery": 100,
+        "temperature": 21.8,
+        "humidity": 33,
+        "temperature_unit": "celsius",
+        "temperature_calibration": 0,
+        "humidity_calibration": 0
+    }
+}

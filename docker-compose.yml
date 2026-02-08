@@ -1,6 +1,7 @@
 version: "3.8"
 
 x-common-variables: &common-variables
+  COMPOSE_PROFILES: ${COMPOSE_PROFILES:-dev}
   POSTGRES_DB: ${POSTGRES_DB:-zigbee_monitoring}
   POSTGRES_USER: ${POSTGRES_USER:-zigbeeser}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zigbeessword}
@@ -16,6 +17,8 @@ x-common-variables: &common-variables
 services:
   # --- Базовые сервисы (всегда запускаются) ---
   postgres:
+    profiles:
+      - telemetry
     image: timescale/timescaledb:latest-pg16
     container_name: zigbee-postgres
     environment:
@@ -66,6 +69,8 @@ services:
       retries: 3
 
   kafka:
+    profiles:
+      - telemetry
     image: bitnamilegacy/kafka:3.4
     container_name: zigbee-kafka
     depends_on:
@@ -115,6 +120,8 @@ services:
       start_period: 90s
 
   kafka-ui:
+    profiles:
+      - dev-ui
     image: provectuslabs/kafka-ui:latest
     container_name: zigbee-kafka-ui
     ports:
@@ -163,6 +170,8 @@ services:
       - mosquitto_log:/mosquitto/log
 
   grafana:
+    profiles:
+      - ui
     image: grafana/grafana:10.3.3
     container_name: zigbee-grafana
     user: "472:472"
@@ -205,7 +214,8 @@ services:
 
   # --- PROFILE: dev (только для разработки) ---
   sensor-simulator:
-    profiles: ["dev"]
+    profiles:
+      - dev
     build:
       context: ./sensor_simulator
     container_name: zigbee-sensor-simulator
@@ -223,6 +233,8 @@ services:
 
   # --- PROFILE: production (для реальных устройств) ---
   kafka-producer:
+    profiles:
+      - telemetry
     build:
       context: ./kafka_producer
     container_name: zigbee-kafka-producer
@@ -233,11 +245,15 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
+    volumes:
+      - ./kafka_producer:/app
 
     restart: unless-stopped
     command: python -m main
 
   kafka-consumer:
+    profiles:
+      - telemetry
     build:
       context: ./kafka_consumer
     container_name: zigbee-kafka-consumer
@@ -254,6 +270,51 @@ services:
     restart: unless-stopped
     volumes:
       - ./kafka_consumer:/app
+  admin-panel:
+    profiles:
+      - processing
+    build:
+      context: ./django
+    container_name: zigbee-admin-panel
+    environment:
+      <<: *common-variables
+      DJANGO_SETTINGS_MODULE: config.settings
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./django:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate &&
+            python manage.py collectstatic --noinput &&
+            gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+
+  zigbee2mqtt:
+    profiles:
+      - production # Запускать только в продакшн-режиме
+    image: koenkk/zigbee2mqtt:latest
+    container_name: zigbee2mqtt
+    restart: unless-stopped
+    ports:
+      - "8082:8080" # Веб-интерфейс
+    volumes:
+      - ./zigbee2mqtt/data:/app/data
+      - ./zigbee2mqtt/log:/app/log
+    environment:
+      - TZ=Europe/Moscow
+      - MQTT_SERVER=mqtt://mosquitto:1883
+    devices:
+      - /dev/tty.usbserial-2130:/dev/ttyACM0 # Замените * на конкретный ID
+    depends_on:
+      mosquitto:
+        condition: service_healthy
 
 volumes:
   postgres_data:

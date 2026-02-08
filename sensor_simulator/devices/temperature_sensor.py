@@ -34,7 +34,7 @@ class TemperatureSensor(ZigbeeDevice):
             "pressure": pressure,
             "device": {
                 "friendlyName": self.friendly_name,
-                "model": "WSDCGQ11LM",
+                "model": "virtual",
                 "ieee_address": self.ieee_address,
             },
         }
