@@ -1,0 +1,41 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls %}
+
+{% block object-tools-items %}
+{% if cl.opts.verbose_name_plural == "Статистика устройств" %}
+<li>
+    <a href="#" onclick="updateDeviceInfo(); return false;" class="button">
+        🔄 Обновить информацию об устройствах
+    </a>
+</li>
+{% endif %}
+{{ block.super }}
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+    function updateDeviceInfo() {
+        // Отправляем AJAX запрос для обновления информации
+        fetch('/admin/devices/devicestats/update_device_info/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Запрос на обновление информации отправлен');
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Ошибка сети: ' + error);
+            });
+    }
+</script>
+{% endblock %}

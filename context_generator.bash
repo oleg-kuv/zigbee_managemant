@@ -3,7 +3,7 @@ echo "Мои устройства: Координатор - ZBDongle-P Zigbee3.0
 Устройство - zg-227z (температура и влажность) (на чипе написано: TLSR8253 F512AT32 ZHBN2534 EW4005)"
 echo "Структура проекта"
 echo '```'
-tree -I ".venv|__pycache__|htmlcov|logs|__init__.py|prompt.md|context_generator.bash|data" ./
+tree -I ".venv|__pycache__|htmlcov|logs|__init__.py|prompt.md|context_generator.bash|data|log|static" ./
 echo -e '```\n'
 
 # Функция вывода файла
@@ -38,6 +38,9 @@ files=$(
         -name "__pycache__" -prune \
         -o -path "./postgres/data" -prune \
         -o -path "./kafka/data" -prune \
+        -o -path "./django/static" -prune \
+        -o -path "./zigbee2mqtt/log" -prune \
+        -o -path "./zookeeper" -prune \
         -o -type d -name ".venv" -prune \
         -o -type d -name ".git" -prune \
         -o -type f -name "__init__.py" -prune \
@@ -541,4 +544,5 @@ echo 'Вот топик
 ]```'
 
 echo 'Я веду разработку на macos'
+echo "Требования к коду: Не использовать относительные импорты. Оставлять фалйы __init__.py пустыми. Все импорты указывать только вначале файла"
 echo "Отвечай на русском языке. Отвечай кратко."

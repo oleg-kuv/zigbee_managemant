@@ -1,18 +1,59 @@
 {
     "0xa4c138e53b478e15": {
-        "temperature": 23.3,
-        "humidity": 25,
+        "temperature": 24,
+        "humidity": 38,
         "battery": 100,
-        "temperature_unit": "celsius",
+        "temperature_unit": "fahrenheit",
         "temperature_calibration": 0,
         "humidity_calibration": 0
     },
     "0xa4c13851d88beb21": {
         "battery": 100,
-        "temperature": 21.8,
-        "humidity": 33,
+        "temperature": 22.9,
+        "humidity": 44,
         "temperature_unit": "celsius",
         "temperature_calibration": 0,
         "humidity_calibration": 0
+    },
+    "0xa4c1381c3c8d6154": {
+        "temperature": 19.9,
+        "humidity": 51,
+        "battery": 100,
+        "temperature_unit": "fahrenheit",
+        "temperature_calibration": 0,
+        "humidity_calibration": 0
+    },
+    "0x00124b003567724a": {
+        "humidity": 54,
+        "temperature": 6.2,
+        "battery": 87.5,
+        "voltage": 2800,
+        "update": {
+            "state": "idle",
+            "installed_version": 24,
+            "latest_version": 24,
+            "latest_source": null,
+            "latest_release_notes": null
+        }
+    },
+    "0xa4c138aac4bfa52a": {
+        "rainwater": "none",
+        "sensitivity": 5,
+        "illuminance_sampling": 2,
+        "illuminance": 0,
+        "battery": 100
+    },
+    "0xa4c138830c395f65": {
+        "battery": 90,
+        "voltage": 2900,
+        "water_leak": false,
+        "tamper": false,
+        "battery_low": false
+    },
+    "0xa4c138a6f8028fda": {
+        "battery": 100,
+        "voltage": 3000,
+        "temperature": 27.89,
+        "humidity": 40.52
     }
 }

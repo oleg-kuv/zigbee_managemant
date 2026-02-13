@@ -1,214 +1,547 @@
 {
-    "title": "Zigbee Датчики - Мониторинг",
-    "uid": "zigbee-sensors",
-    "version": 1,
-    "time": {
-        "from": "now-1h",
-        "to": "now"
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
     },
-    "timezone": "browser",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 3,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "super-light-blue",
+                                "value": null
+                            },
+                            {
+                                "color": "light-blue",
+                                "value": 5
+                            },
+                            {
+                                "color": "green",
+                                "value": 20
+                            },
+                            {
+                                "color": "#EAB839",
+                                "value": 25
+                            },
+                            {
+                                "color": "red",
+                                "value": 100
+                            }
+                        ]
+                    },
+                    "unit": "celsius",
+                    "unitScale": true
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "id": 5,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": true
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "10.3.3",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n\tcoalesce(zd.friendly_name, lm.ieee_address) AS \"metric\",\n\t(lm.data->>'temperature')::float AS temperature\n\nFROM public.latest_measurements AS lm\nleft join devices_zigbeedevice zd on zd.ieee_address = lm.ieee_address\nORDER BY zd.created_at asc\n",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Текущая температура",
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "smooth",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": true,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "celsius",
+                    "unitScale": true
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 8
+            },
+            "id": 1,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n    sm.generated_time AS \"time\",\n    coalesce(zd.friendly_name, sm.ieee_address) AS \"metric\",\n    (sm.data->'temperature')::float AS temperature\nFROM public.sensor_measurements AS sm\nleft join devices_zigbeedevice zd on zd.ieee_address = sm.ieee_address\nWHERE $__timeFilter(sm.generated_time)\nORDER BY sm.generated_time ASC",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Температура",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "smooth",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": true,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent",
+                    "unitScale": true
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 8
+            },
+            "id": 2,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n    sm.generated_time AS \"time\",\n    coalesce(zd.friendly_name, sm.ieee_address) AS \"metric\",\n    (sm.data->'humidity')::float AS humidity\nFROM public.sensor_measurements AS sm\nLEFT JOIN devices_zigbeedevice zd on zd.ieee_address = sm.ieee_address\nWHERE $__timeFilter(sm.generated_time)\nORDER BY sm.generated_time ASC",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Влажность",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 10
+                            },
+                            {
+                                "color": "green",
+                                "value": 30
+                            }
+                        ]
+                    },
+                    "unit": "percent",
+                    "unitScale": true
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 16
+            },
+            "id": 3,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "10.3.3",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n    sm.generated_time AS \"time\",\n    coalesce(zd.friendly_name, sm.ieee_address) AS \"metric\",\n    (sm.data->>'battery')::float AS battery\nFROM public.sensor_measurements AS sm\nleft join devices_zigbeedevice zd on zd.ieee_address = sm.ieee_address\nWHERE $__timeFilter(sm.generated_time)\nORDER BY sm.generated_time ASC",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Батарея",
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 100
+                            },
+                            {
+                                "color": "green",
+                                "value": 150
+                            }
+                        ]
+                    },
+                    "unit": "short",
+                    "unitScale": true
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 16
+            },
+            "id": 4,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "10.3.3",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "rawSql": "SELECT\n    sm.generated_time AS \"time\",\n    coalesce(zd.friendly_name, sm.ieee_address) AS \"metric\",\n    (sm.data->>'linkquality')::float AS linkquality\nFROM public.sensor_measurements AS sm\nleft join devices_zigbeedevice zd on zd.ieee_address = sm.ieee_address\nWHERE $__timeFilter(sm.generated_time)\nORDER BY sm.generated_time ASC",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Качество связи",
+            "type": "gauge"
+        }
+    ],
     "refresh": "10s",
+    "schemaVersion": 39,
     "tags": [
         "zigbee",
         "iot",
         "sensors"
     ],
-    "editable": true,
-    "gnetId": null,
-    "graphTooltip": 1,
-    "links": [],
-    "panels": [
-        {
-            "id": 1,
-            "title": "Температура",
-            "type": "timeseries",
-            "datasource": "PostgreSQL",
-            "targets": [
-                {
-                    "rawSql": "SELECT\n    sm.generated_time AS \"time\",\n    ieee_address AS \"metric\",\n    (sm.data->'temperature')::float AS temperature\nFROM public.sensor_measurements AS sm\nWHERE $__timeFilter(sm.generated_time)\nORDER BY sm.generated_time ASC",
-                    "format": "time_series",
-                    "refId": "A"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "celsius",
-                    "color": {
-                        "mode": "palette-classic"
-                    },
-                    "custom": {
-                        "drawStyle": "line",
-                        "lineInterpolation": "linear",
-                        "barAlignment": 0,
-                        "lineWidth": 1,
-                        "fillOpacity": 10,
-                        "gradientMode": "none",
-                        "spanNulls": false,
-                        "showPoints": "auto",
-                        "pointSize": 5,
-                        "stacking": {
-                            "mode": "none",
-                            "group": "A"
-                        },
-                        "axisPlacement": "auto"
-                    }
-                }
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 12,
-                "x": 0,
-                "y": 0
-            }
-        },
-        {
-            "id": 2,
-            "title": "Влажность",
-            "type": "timeseries",
-            "datasource": "PostgreSQL",
-            "targets": [
-                {
-                    "rawSql": "SELECT\n    sm.generated_time AS \"time\",\n    ieee_address AS \"metric\",\n    (sm.data->'humidity')::float AS humidity\nFROM public.sensor_measurements AS sm\nWHERE $__timeFilter(sm.generated_time)\nORDER BY sm.generated_time ASC",
-                    "format": "time_series",
-                    "refId": "A"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "percent",
-                    "color": {
-                        "mode": "palette-classic"
-                    },
-                    "custom": {
-                        "drawStyle": "line",
-                        "lineInterpolation": "linear",
-                        "barAlignment": 0,
-                        "lineWidth": 1,
-                        "fillOpacity": 10,
-                        "gradientMode": "none",
-                        "spanNulls": false,
-                        "showPoints": "auto",
-                        "pointSize": 5,
-                        "stacking": {
-                            "mode": "none",
-                            "group": "A"
-                        },
-                        "axisPlacement": "auto"
-                    }
-                }
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 12,
-                "x": 12,
-                "y": 0
-            }
-        },
-        {
-            "id": 3,
-            "title": "Батарея",
-            "type": "timeseries",
-            "datasource": "PostgreSQL",
-            "targets": [
-                {
-                    "rawSql": "SELECT\n    sm.generated_time AS \"time\",\n    ieee_address AS \"metric\",\n    (sm.data->'battery')::float AS battery\nFROM public.sensor_measurements AS sm\nWHERE $__timeFilter(sm.generated_time)\nORDER BY sm.generated_time ASC",
-                    "format": "time_series",
-                    "refId": "A"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "percent",
-                    "color": {
-                        "mode": "palette-classic"
-                    },
-                    "custom": {
-                        "drawStyle": "line",
-                        "lineInterpolation": "linear",
-                        "barAlignment": 0,
-                        "lineWidth": 1,
-                        "fillOpacity": 10,
-                        "gradientMode": "none",
-                        "spanNulls": false,
-                        "showPoints": "auto",
-                        "pointSize": 5,
-                        "stacking": {
-                            "mode": "none",
-                            "group": "A"
-                        },
-                        "axisPlacement": "auto"
-                    }
-                }
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 12,
-                "x": 0,
-                "y": 8
-            }
-        },
-        {
-            "id": 4,
-            "title": "Качество связи",
-            "type": "timeseries",
-            "datasource": "PostgreSQL",
-            "targets": [
-                {
-                    "rawSql": "SELECT\n    sm.generated_time AS \"time\",\n    ieee_address AS \"metric\",\n    (sm.data->'linkquality')::float AS linkquality\nFROM public.sensor_measurements AS sm\nWHERE $__timeFilter(sm.generated_time)\nORDER BY sm.generated_time ASC",
-                    "format": "time_series",
-                    "refId": "A"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "short",
-                    "color": {
-                        "mode": "palette-classic"
-                    },
-                    "custom": {
-                        "drawStyle": "line",
-                        "lineInterpolation": "linear",
-                        "barAlignment": 0,
-                        "lineWidth": 1,
-                        "fillOpacity": 10,
-                        "gradientMode": "none",
-                        "spanNulls": false,
-                        "showPoints": "auto",
-                        "pointSize": 5,
-                        "stacking": {
-                            "mode": "none",
-                            "group": "A"
-                        },
-                        "axisPlacement": "auto"
-                    }
-                }
-            },
-            "gridPos": {
-                "h": 8,
-                "w": 12,
-                "x": 12,
-                "y": 8
-            }
-        }
-    ],
     "templating": {
-        "list": [
-            {
-                "name": "device",
-                "label": "Устройство",
-                "type": "query",
-                "datasource": "PostgreSQL",
-                "refresh": 1,
-                "options": [],
-                "current": {
-                    "value": "",
-                    "text": "Все"
-                },
-                "query": "SELECT DISTINCT ieee_address FROM sensor_measurements ORDER BY ieee_address",
-                "includeAll": true,
-                "multi": true,
-                "allValue": null
-            }
-        ]
-    }
+        "list": []
+    },
+    "time": {
+        "from": "now-3h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Zigbee Датчики - Мониторинг",
+    "uid": "zigbee-sensors",
+    "version": 19,
+    "weekStart": ""
 }

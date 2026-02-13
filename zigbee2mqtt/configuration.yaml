@@ -4,9 +4,9 @@ homeassistant:
 permit_join: true
 mqtt:
   base_topic: zigbee2mqtt
-  server: mqtt://localhost:1883
+  server: mqtt://localhost:1889
 serial:
-  port: /dev/tty.usbserial-2140
+  port: /dev/tty.usbserial-2130
   adapter: zstack
   baudrate: 115200
 frontend:
@@ -25,3 +25,13 @@ devices:
     friendly_name: '0xa4c138e53b478e15'
   '0xa4c13851d88beb21':
     friendly_name: '0xa4c13851d88beb21'
+  '0xa4c1381c3c8d6154':
+    friendly_name: '0xa4c1381c3c8d6154'
+  '0x00124b003567724a':
+    friendly_name: '0x00124b003567724a'
+  '0xa4c138aac4bfa52a':
+    friendly_name: '0xa4c138aac4bfa52a'
+  '0xa4c138830c395f65':
+    friendly_name: '0xa4c138830c395f65'
+  '0xa4c138a6f8028fda':
+    friendly_name: '0xa4c138a6f8028fda'
