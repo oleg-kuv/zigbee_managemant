@@ -219,3 +219,4 @@ zookeeper/*
 zigbee2mqtt/*
 !zigbee2mqtt/configuration.yaml
 kafka/*
+postgres/data*

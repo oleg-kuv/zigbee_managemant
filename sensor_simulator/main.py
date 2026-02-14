@@ -8,6 +8,7 @@ from config import SimulatorConfig
 from devices.motion_sensor import MotionSensor
 from devices.switch_device import SwitchDevice
 from devices.temperature_sensor import TemperatureSensor
+from devices.water_sensor import WaterLeakSensor
 from mqtt_client import MQTTClient
 
 logging.basicConfig(
@@ -50,7 +51,7 @@ class SensorSimulator:
             return False
 
     def create_devices(self) -> None:
-        """Создание имитируемых устройств разных типов"""
+        """Создание имитируемых устройств на основе выбранных типов из конфига"""
         locations = [
             "living_room",
             "bedroom",
@@ -61,27 +62,34 @@ class SensorSimulator:
             "office",
             "garage",
         ]
-        device_types = ["temperature", "motion", "switch"]
+
+        # Если список типов пуст, используем все доступные
+        available_types = self.config.device_types
+        if not available_types:
+            available_types = ["temperature", "motion", "switch", "water"]
 
         for i in range(self.config.num_devices):
-            device_type = random.choice(device_types)
-            ieee_address = f"0x{random.randint(0x1000, 0xFFFF):04x}{random.randint(0x1000, 0xFFFF):04x}"
+            device_type = random.choice(available_types)
+            ieee_address = "0x" + "".join(random.choices("0123456789abcdef", k=16))
             location = random.choice(locations)
 
             if device_type == "temperature":
                 friendly_name = f"temp_sensor_{i + 1:03d}"
                 device = TemperatureSensor(ieee_address, friendly_name, location)
-
             elif device_type == "motion":
                 friendly_name = f"motion_sensor_{i + 1:03d}"
                 device = MotionSensor(ieee_address, friendly_name, location)
-
             elif device_type == "switch":
                 friendly_name = f"switch_{i + 1:03d}"
                 device = SwitchDevice(ieee_address, friendly_name, location)
+            elif device_type == "water":
+                friendly_name = f"water_sensor_{i + 1:03d}"
+                device = WaterLeakSensor(ieee_address, friendly_name, location)
+            else:
+                # Если тип неизвестен, пропускаем (или можно создать базовый)
+                continue
 
             self.devices.append(device)
-
             logger.info(
                 f"Created {device_type} device: {friendly_name} at {location} ({ieee_address})"
             )

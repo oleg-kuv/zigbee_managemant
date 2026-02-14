@@ -25,10 +25,8 @@ class SwitchDevice(ZigbeeDevice):
         self.last_energy_update = time.time()
 
     def generate_data(self) -> Dict[str, Any]:
-        """Генерация данных управляемого устройства"""
         current_time = time.time()
 
-        # Обновление потребления энергии
         if self.state == "ON":
             self.power = random.uniform(10, 100)
             self.current = self.power / self.voltage
@@ -48,20 +46,12 @@ class SwitchDevice(ZigbeeDevice):
             "voltage": round(self.voltage, 1),
             "current": round(self.current, 3),
             "energy": round(self.energy, 4),
-            "device": {
-                "friendlyName": self.friendly_name,
-                "model": "virtual" if self.device_type == "switch" else "virtual",
-                "ieee_address": self.ieee_address,
-            },
         }
 
-        # Медленный разряд батареи
         self.simulate_battery_drain(0.0002)
-
         return data
 
     def set_state(self, state: str) -> bool:
-        """Установка состояния устройства"""
         if state.upper() in ["ON", "OFF"]:
             self.state = state.upper()
             return True

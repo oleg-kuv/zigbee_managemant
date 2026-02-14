@@ -541,8 +541,22 @@ echo 'Вот топик
     "supported": true,
     "type": "EndDevice"
   }
-]```'
+]
+```'
+
+
+echo 'Примеры поля data таблицы `sensor_measurements`:'
+echo '
+```
+{"battery": 100, "voltage": 3000, "humidity": 40.52, "linkquality": 174, "temperature": 27.89}                                                                                                       
+{"battery": 100, "humidity": 38, "linkquality": 178, "temperature": 24, "temperature_unit": "fahrenheit", "humidity_calibration": 0, "temperature_calibration": 0}                                   
+{"battery": 100, "rainwater": "none", "illuminance": 0, "linkquality": 112, "sensitivity": 5, "illuminance_sampling": 2}                                                                             
+{"battery": 100, "humidity": 51, "linkquality": 54, "temperature": 19.9, "temperature_unit": "fahrenheit", "humidity_calibration": 0, "temperature_calibration": 0}                                  
+{"tamper": false, "battery": 90, "voltage": 2900, "water_leak": false, "battery_low": false, "linkquality": 185}                                                                                     
+{"battery": 100, "humidity": 42, "linkquality": 21, "temperature": 22.9, "temperature_unit": "celsius", "humidity_calibration": 0, "temperature_calibration": 0}                                     
+```
+'
 
 echo 'Я веду разработку на macos'
-echo "Требования к коду: Не использовать относительные импорты. Оставлять фалйы __init__.py пустыми. Все импорты указывать только вначале файла"
+echo "Требования к коду: Не использовать относительные импорты. Оставлять фалйы __init__.py пустыми. Все импорты указывать только вначале файла. Использовать gettext_lazy"
 echo "Отвечай на русском языке. Отвечай кратко."

@@ -40,7 +40,7 @@ class ZigbeeDevice(ABC):
 
     def get_mqtt_topic(self, topic_prefix: str) -> str:
         """Получение MQTT топика устройства"""
-        return f"{topic_prefix}/{self.friendly_name}"
+        return f"{topic_prefix}/{self.ieee_address}"
 
     def get_full_payload(self) -> Dict[str, Any]:
         """Полный payload для отправки"""

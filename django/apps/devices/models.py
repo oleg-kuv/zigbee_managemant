@@ -1,5 +1,6 @@
 import uuid
 
+from apps.common.models import TimeStampedModel
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -46,7 +47,7 @@ class BatteryStatus(models.TextChoices):
     UNKNOWN = "unknown", "Неизвестно"
 
 
-class ZigbeeDevice(models.Model):
+class ZigbeeDevice(TimeStampedModel):
     """Основная модель Zigbee устройства"""
 
     # Основная информация
@@ -205,10 +206,6 @@ class ZigbeeDevice(models.Model):
     description = models.TextField(blank=True, verbose_name="Описание")
 
     notes = models.TextField(blank=True, verbose_name="Заметки")
-
-    # Системные поля
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Zigbee устройство"
@@ -501,7 +498,7 @@ class DeviceEvent(models.Model):
         return f"{self.device.friendly_name} - {self.event_type} - {self.timestamp}"
 
 
-class DeviceGroup(models.Model):
+class DeviceGroup(TimeStampedModel):
     """Группы устройств для управления"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -513,9 +510,6 @@ class DeviceGroup(models.Model):
     devices = models.ManyToManyField(
         ZigbeeDevice, related_name="groups", blank=True, verbose_name="Устройства"
     )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Группа устройств"
@@ -534,7 +528,7 @@ class DeviceGroup(models.Model):
         return self.devices.filter(status=DeviceStatus.ONLINE).count()
 
 
-class DeviceConfiguration(models.Model):
+class DeviceConfiguration(TimeStampedModel):
     """Конфигурация устройства"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -624,9 +618,6 @@ class DeviceConfiguration(models.Model):
     advanced_config = JSONField(
         default=dict, blank=True, verbose_name="Расширенная конфигурация"
     )
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Конфигурация устройства"
