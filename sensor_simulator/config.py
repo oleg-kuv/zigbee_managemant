@@ -18,7 +18,9 @@ class SimulatorConfig:
     def from_env(cls) -> "SimulatorConfig":
         """Создание конфигурации из переменных окружения"""
         # Парсим список типов устройств из строки, разделённой запятыми
-        types_str = os.getenv("SIMULATOR_DEVICE_TYPES", "temperature,motion,switch")
+        types_str = os.getenv(
+            "SIMULATOR_DEVICE_TYPES", "temperature,motion,switch,water,switch_module"
+        )
         device_types = [t.strip() for t in types_str.split(",") if t.strip()]
 
         return cls(

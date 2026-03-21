@@ -183,22 +183,6 @@ SELECT
 FROM sensor_measurements
 GROUP BY ieee_address;
 
--- ===== TEST DATA (опционально, для проверки) =====
--- Вставляем тестовые данные для проверки
-INSERT INTO sensor_measurements (receive_time, generated_time, ieee_address, data) VALUES
-(
-    NOW() - INTERVAL '1 hour',
-    NOW() - INTERVAL '1 hour 5 seconds',
-    '0x00124b0012345678',
-    '{"temperature": 22.5, "humidity": 45.3, "battery": 95, "linkquality": 120}'::jsonb
-),
-(
-    NOW() - INTERVAL '30 minutes',
-    NOW() - INTERVAL '30 minutes 5 seconds',
-    '0x00124b0012345679',
-    '{"occupancy": true, "illuminance": 250, "battery": 85, "linkquality": 110}'::jsonb
-);
-
 -- ===== COMMENTS =====
 COMMENT ON TABLE sensor_measurements IS '
 TimescaleDB hypertable для хранения измерений Zigbee датчиков.

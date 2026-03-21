@@ -7,6 +7,7 @@ from typing import Any
 from config import SimulatorConfig
 from devices.motion_sensor import MotionSensor
 from devices.switch_device import SwitchDevice
+from devices.switch_module import ZigbeeSwitchModule
 from devices.temperature_sensor import TemperatureSensor
 from devices.water_sensor import WaterLeakSensor
 from mqtt_client import MQTTClient
@@ -66,7 +67,13 @@ class SensorSimulator:
         # Если список типов пуст, используем все доступные
         available_types = self.config.device_types
         if not available_types:
-            available_types = ["temperature", "motion", "switch", "water"]
+            available_types = [
+                "temperature",
+                "motion",
+                "switch",
+                "water",
+                "switch_module",
+            ]
 
         for i in range(self.config.num_devices):
             device_type = random.choice(available_types)
@@ -85,6 +92,9 @@ class SensorSimulator:
             elif device_type == "water":
                 friendly_name = f"water_sensor_{i + 1:03d}"
                 device = WaterLeakSensor(ieee_address, friendly_name, location)
+            elif device_type == "switch_module":
+                friendly_name = f"switch_module_{i + 1:03d}"
+                device = ZigbeeSwitchModule(ieee_address, friendly_name, location)
             else:
                 # Если тип неизвестен, пропускаем (или можно создать базовый)
                 continue
@@ -109,25 +119,40 @@ class SensorSimulator:
                 else:
                     logger.warning(f"Failed to publish to {topic}")
 
-            # Для управляемых устройств иногда имитируем команды
-            if isinstance(device, SwitchDevice) and random.random() > 0.9:
-                self._simulate_switch_command(device)
+            # Убрана имитация команд для SwitchDevice, так как теперь команды приходят через подписку
 
         except Exception as e:
             logger.error(f"Failed to publish data for {device.friendly_name}: {e}")
 
-    def _simulate_switch_command(self, switch_device: SwitchDevice) -> None:
-        """Имитация команды для управляемого устройства"""
-        new_state = "ON" if switch_device.state == "OFF" else "OFF"
+    def _on_command_message(self, client, userdata, msg):
+        try:
+            import json
 
-        command_topic = f"{self.config.topic_prefix}/{switch_device.friendly_name}/set"
-        command_payload = {"state": new_state}
+            payload = json.loads(msg.payload.decode())
+            topic = msg.topic
+            parts = topic.split("/")
+            if len(parts) >= 2 and parts[-1] == "set":
+                ieee_address = parts[-2]
+            else:
+                logger.warning(f"Unexpected command topic format: {topic}")
+                return
 
-        if self.mqtt_client.publish(command_topic, command_payload, qos=1):
-            logger.info(
-                f"Simulated command for {switch_device.friendly_name}: {new_state}"
+            device = next(
+                (d for d in self.devices if d.ieee_address == ieee_address), None
             )
-            switch_device.set_state(new_state)
+            if device and hasattr(device, "handle_command"):
+                if device.handle_command(payload):
+                    logger.info(
+                        f"Device {device.friendly_name} (IEEE: {ieee_address}) updated via command: {payload}"
+                    )
+                else:
+                    logger.debug(f"Command received but no changes: {payload}")
+            else:
+                logger.warning(f"No device or handler for command topic {topic}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode command JSON: {e}")
+        except Exception as e:
+            logger.error(f"Error processing command message: {e}", exc_info=True)
 
     def run(self) -> None:
         """Основной цикл симулятора"""
@@ -138,6 +163,13 @@ class SensorSimulator:
             return
 
         self.create_devices()
+
+        # Подписка на команды для устройств, которые их поддерживают
+        for device in self.devices:
+            if hasattr(device, "handle_command"):
+                cmd_topic = f"{self.config.topic_prefix}/{device.ieee_address}/set"
+                self.mqtt_client.subscribe(cmd_topic, self._on_command_message)
+                logger.info(f"Subscribed to command topic: {cmd_topic}")
 
         logger.info(
             f"Simulating {len(self.devices)} devices every {self.config.update_interval} seconds"
