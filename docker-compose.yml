@@ -358,7 +358,7 @@ services:
       - TZ=Europe/Moscow
       - MQTT_SERVER=mqtt://mosquitto:1889
     devices:
-      - /dev/tty.usbserial-2130:/dev/ttyACM0 # Замените * на конкретный ID
+      - /dev/tty.usbserial-2130:/dev/ttyUSB0
     depends_on:
       mosquitto:
         condition: service_healthy
