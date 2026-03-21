@@ -310,8 +310,6 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      start_period: 60s
-      start_interval: 5s
       test:
         [
           "CMD-SHELL",
@@ -323,6 +321,7 @@ services:
       retries: 3
       #start_period: 30s # время на миграции и сбор статики
       start_interval: 10s
+      start_period: 60s
 
     command: >
       sh -c "python manage.py migrate &&
