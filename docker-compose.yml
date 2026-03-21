@@ -310,6 +310,8 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
+      start_period: 60s
+      start_interval: 5s
       test:
         [
           "CMD-SHELL",
