@@ -99,7 +99,7 @@ services:
 
     volumes:
       #- ./kafka/data:/bitnami/kafka
-      - ./kafka/logs:/opt/bitnami/kafka/logs
+      #- ./kafka/logs:/opt/bitnami/kafka/logs
 
     healthcheck:
       test:
@@ -127,10 +127,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-    volumes:
-      - ./zookeeper/data:/var/lib/zookeeper/data
-      - ./zookeeper/logs:/var/lib/zookeeper/log
-      - ./zookeeper/datalog:/var/lib/zookeeper/datalog
+#    volumes:
+#      - ./zookeeper/data:/var/lib/zookeeper/data
+#      - ./zookeeper/logs:/var/lib/zookeeper/log
+#      - ./zookeeper/datalog:/var/lib/zookeeper/datalog
 
   kafka-ui:
     profiles:
