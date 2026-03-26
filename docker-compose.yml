@@ -97,7 +97,7 @@ services:
     ports:
       - "9098:9092"
 
-    volumes:
+    #volumes:
       #- ./kafka/data:/bitnami/kafka
       #- ./kafka/logs:/opt/bitnami/kafka/logs
 
