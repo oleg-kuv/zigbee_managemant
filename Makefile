@@ -26,14 +26,12 @@ ps:
 
 :PHONY migrate
 migrate:
-	docker compose up -d redis
-	docker compose up -d postgres
+	docker compose up -d redis postgres
 	docker compose run --rm admin-panel python3 ./manage.py migrate --noinput
 
 :PHONY makemigrations
 makemigrations:
-	docker compose up -d redis
-	docker compose up -d postgres
+	docker compose up -d redis postgres
 	docker compose run --rm admin-panel python3 ./manage.py makemigrations --noinput
 
 :PHONY run
