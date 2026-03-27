@@ -2,6 +2,14 @@
 new-device:
 	mosquitto_pub -t "zigbee2mqtt/bridge/request/permit_join" -m '{"value":true, "time":120}' -p 1889
 
+:PHONY pull
+pull:
+	docker compose pull
+
+:PHONY build
+build:
+	docker compose build
+
 :PHONY up
 up:
 	docker compose up -d
