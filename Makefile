@@ -35,3 +35,7 @@ makemigrations:
 	docker compose up -d redis
 	docker compose up -d postgres
 	docker compose run --rm admin-panel python3 ./manage.py makemigrations --noinput
+
+:PHONY run
+run:
+	docker compose run --rm ${SRV} bash
