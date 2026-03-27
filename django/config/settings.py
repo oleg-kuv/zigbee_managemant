@@ -32,7 +32,8 @@ INSTALLED_APPS = [
     "django_filters",
     "apps.locations",
     "apps.devices",
-    "apps.sensors",
+    # temporarily deactivated
+#    "apps.sensors", 
     "apps.timemarkers",
 ]
 
