@@ -100,3 +100,6 @@ MQTT_BROKER_HOST = env("MQTT_BROKER_HOST", default="mosquitto")
 MQTT_BROKER_PORT = env.int("MQTT_BROKER_PORT", default=1883)
 MQTT_USERNAME = env("MQTT_USERNAME", default=None)
 MQTT_PASSWORD = env("MQTT_PASSWORD", default=None)
+
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
