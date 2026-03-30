@@ -14,6 +14,10 @@ build:
 up:
 	docker compose up -d
 
+:PHONY logs
+logs:
+	docker compose logs -f ${srv}
+
 :PHONY down
 down:
 	docker compose down
@@ -36,4 +40,4 @@ makemigrations:
 
 :PHONY run
 run:
-	docker compose run --rm ${SRV} bash
+	docker compose run --rm ${srv} bash
