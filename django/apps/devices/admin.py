@@ -1,3 +1,5 @@
+import logging
+
 from apps.devices.models import (
     DeviceConfiguration,
     DeviceEvent,
@@ -14,6 +16,8 @@ from django.utils.translation import gettext_lazy as _
 from django import forms
 
 from .mqtt_client import mqtt_client
+
+logger = logging.getLogger(__name__)
 
 
 class ZigbeeDeviceAdminForm(forms.ModelForm):
