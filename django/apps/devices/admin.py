@@ -9,10 +9,31 @@ from apps.devices.models import (
 from django.contrib import admin
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+
+from django import forms
+
+from .mqtt_client import mqtt_client
+
+
+class ZigbeeDeviceAdminForm(forms.ModelForm):
+    device_command = forms.ChoiceField(
+        choices=[("", "---"), ("OFF", _("Выключить")), ("ON", _("Включить"))],
+        required=False,
+        label=_("Команда устройству"),
+        help_text=_(
+            "Отправить команду включения/выключения (состояние не сохраняется в БД)"
+        ),
+    )
+
+    class Meta:
+        model = ZigbeeDevice
+        fields = "__all__"
 
 
 @admin.register(ZigbeeDevice)
 class ZigbeeDeviceAdmin(admin.ModelAdmin):
+    form = ZigbeeDeviceAdminForm
     list_display = [
         "friendly_name",
         "ieee_address",
@@ -101,6 +122,16 @@ class ZigbeeDeviceAdmin(admin.ModelAdmin):
                     "description",
                     "notes",
                 )
+            },
+        ),
+        (
+            "Управление",
+            {
+                "fields": ("device_command",),
+                "classes": ("collapse",),
+                "description": _(
+                    "Отправка команды ON/OFF устройству без сохранения состояния в БД"
+                ),
             },
         ),
         (
@@ -208,6 +239,36 @@ class ZigbeeDeviceAdmin(admin.ModelAdmin):
         )
 
     device_actions.short_description = "Действия"
+
+    def save_model(self, request, obj, form, change):
+        # Сначала сохраняем объект (обновление метаданных)
+        super().save_model(request, obj, form, change)
+
+        # Отправляем команду устройству, если она выбрана
+        command = form.cleaned_data.get("device_command")
+        if command in ("ON", "OFF"):
+            topic = f"{obj.mqtt_topic}/set"
+            payload = {"state": command}
+            try:
+                if mqtt_client.publish(topic, payload):
+                    self.message_user(
+                        request,
+                        _('Команда "%(cmd)s" отправлена устройству %(name)s')
+                        % {"cmd": command, "name": obj.friendly_name},
+                        level="SUCCESS",
+                    )
+                else:
+                    self.message_user(
+                        request,
+                        _("MQTT клиент не подключён, команда не отправлена"),
+                        level="ERROR",
+                    )
+            except Exception as e:
+                self.message_user(
+                    request,
+                    _("Ошибка отправки команды: %(err)s") % {"err": str(e)},
+                    level="ERROR",
+                )
 
 
 @admin.register(SensorMeasurement)
