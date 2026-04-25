@@ -22,4 +22,4 @@ datasources:
     isDefault: true
     editable: true
     version: 1
-    uid: "postgres-ds"
+    uid: "postgres-ds1"

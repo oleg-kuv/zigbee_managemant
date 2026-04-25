@@ -4,9 +4,9 @@ homeassistant:
 permit_join: true
 mqtt:
   base_topic: zigbee2mqtt
-  server: mqtt://localhost:1889
+  server: mqtt://mosquitto:1883
 serial:
-  port: /dev/tty.usbserial-2130
+  port: /dev/ttyUSB0
   adapter: zstack
   baudrate: 115200
 frontend:
