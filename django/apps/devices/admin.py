@@ -249,6 +249,7 @@ class ZigbeeDeviceAdmin(admin.ModelAdmin):
         if command in ("ON", "OFF"):
             topic = f"{obj.mqtt_topic}/set"
             payload = {"state": command}
+            logger.info(f"Sending command: topic={topic}, payload={payload}")
             try:
                 if mqtt_client.publish(topic, payload):
                     self.message_user(
