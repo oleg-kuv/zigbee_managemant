@@ -245,35 +245,37 @@ class ZigbeeDeviceAdmin(admin.ModelAdmin):
     device_actions.short_description = "Действия"
 
     def save_model(self, request, obj, form, change):
-        # Сначала сохраняем объект (обновление метаданных)
         super().save_model(request, obj, form, change)
-
-        # Отправляем команду устройству, если она выбрана
         command = form.cleaned_data.get("device_command")
         if command in ("ON", "OFF"):
-            topic = f"{obj.mqtt_topic}/set"
+            # Принудительно запускаем клиент, если не подключён
+            if not mqtt_client.connected:
+                mqtt_client.start()
+                # Ждём подключения до 2 секунд
+                for _ in range(20):
+                    if mqtt_client.connected:
+                        break
+                    time.sleep(0.1)
+                else:
+                    self.message_user(
+                        request, "MQTT клиент не подключился", level="ERROR"
+                    )
+                    return
+
+            topic = f"zigbee2mqtt/{obj.ieee_address}/set"  # используем IEEE, НЕ friendly_name
             payload = {"state": command}
-            logger.info(f"Sending command: topic={topic}, payload={payload}")
             try:
                 if mqtt_client.publish(topic, payload):
                     self.message_user(
                         request,
-                        _('Команда "%(cmd)s" отправлена устройству %(name)s')
-                        % {"cmd": command, "name": obj.friendly_name},
-                        level="SUCCESS",
+                        f"Команда {command} отправлена устройству {obj.friendly_name}",
                     )
                 else:
                     self.message_user(
-                        request,
-                        _("MQTT клиент не подключён, команда не отправлена"),
-                        level="ERROR",
+                        request, "Ошибка: MQTT не отправлено", level="ERROR"
                     )
             except Exception as e:
-                self.message_user(
-                    request,
-                    _("Ошибка отправки команды: %(err)s") % {"err": str(e)},
-                    level="ERROR",
-                )
+                self.message_user(request, f"Ошибка: {e}", level="ERROR")
 
 
 @admin.register(SensorMeasurement)

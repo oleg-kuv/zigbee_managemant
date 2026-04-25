@@ -190,23 +190,22 @@ class Zigbee2MQTTClient:
         Returns:
             bool: True если публикация была инициирована, False если клиент не подключён
         """
-        logger.info(
-            f"publish called: topic={topic}, payload={payload}, connected={self.connected}, client exists={self.client is not None}"
-        )
-        if self.client and self.connected:
-            try:
-                result = self.client.publish(
-                    topic, json.dumps(payload), qos=qos, retain=retain
-                )
-                logger.info(f"MQTT publish result: {result.rc}")
-                return True
-            except Exception as e:
-                logger.error(f"Failed to publish to {topic}: {e}")
+        if not self.connected:
+            logger.warning("MQTT not connected, waiting...")
+            for _ in range(20):
+                if self.connected:
+                    break
+                time.sleep(0.1)
+            else:
+                logger.error("MQTT still not connected, aborting publish")
                 return False
-        else:
-            logger.error(
-                f"Cannot publish: client={self.client is not None}, connected={self.connected}"
-            )
+
+        try:
+            self.client.publish(topic, json.dumps(payload), qos=qos, retain=retain)
+            logger.info(f"Published to {topic}: {payload}")
+            return True
+        except Exception as e:
+            logger.error(f"Publish failed: {e}")
             return False
 
 
