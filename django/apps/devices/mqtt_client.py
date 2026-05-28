@@ -175,6 +175,39 @@ class Zigbee2MQTTClient:
         """Проверка актуальности кэша"""
         return time.time() - self.cache_timestamp <= self.cache_ttl
 
+    def publish(
+        self, topic: str, payload: dict, qos: int = 1, retain: bool = False
+    ) -> bool:
+        """
+        Публикация MQTT сообщения в топик.
+
+        Args:
+            topic: Топик для публикации
+            payload: Словарь с данными (будет преобразован в JSON)
+            qos: Качество обслуживания (0,1,2)
+            retain: Флаг сохранения сообщения на брокере
+
+        Returns:
+            bool: True если публикация была инициирована, False если клиент не подключён
+        """
+        if not self.connected:
+            logger.warning("MQTT not connected, waiting...")
+            for _ in range(20):
+                if self.connected:
+                    break
+                time.sleep(0.1)
+            else:
+                logger.error("MQTT still not connected, aborting publish")
+                return False
+
+        try:
+            self.client.publish(topic, json.dumps(payload), qos=qos, retain=retain)
+            logger.info(f"Published to {topic}: {payload}")
+            return True
+        except Exception as e:
+            logger.error(f"Publish failed: {e}")
+            return False
+
 
 # Глобальный экземпляр клиента
 mqtt_client = Zigbee2MQTTClient()

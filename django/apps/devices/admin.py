@@ -1,3 +1,5 @@
+import logging
+
 from apps.devices.models import (
     DeviceConfiguration,
     DeviceEvent,
@@ -9,10 +11,33 @@ from apps.devices.models import (
 from django.contrib import admin
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+
+from django import forms
+
+from .mqtt_client import mqtt_client
+
+logger = logging.getLogger(__name__)
+
+
+class ZigbeeDeviceAdminForm(forms.ModelForm):
+    device_command = forms.ChoiceField(
+        choices=[("", "---"), ("OFF", _("Выключить")), ("ON", _("Включить"))],
+        required=False,
+        label=_("Команда устройству"),
+        help_text=_(
+            "Отправить команду включения/выключения (состояние не сохраняется в БД)"
+        ),
+    )
+
+    class Meta:
+        model = ZigbeeDevice
+        fields = "__all__"
 
 
 @admin.register(ZigbeeDevice)
 class ZigbeeDeviceAdmin(admin.ModelAdmin):
+    form = ZigbeeDeviceAdminForm
     list_display = [
         "friendly_name",
         "ieee_address",
@@ -101,6 +126,16 @@ class ZigbeeDeviceAdmin(admin.ModelAdmin):
                     "description",
                     "notes",
                 )
+            },
+        ),
+        (
+            "Управление",
+            {
+                "fields": ("device_command",),
+                "classes": ("collapse",),
+                "description": _(
+                    "Отправка команды ON/OFF устройству без сохранения состояния в БД"
+                ),
             },
         ),
         (
@@ -208,6 +243,39 @@ class ZigbeeDeviceAdmin(admin.ModelAdmin):
         )
 
     device_actions.short_description = "Действия"
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        command = form.cleaned_data.get("device_command")
+        if command in ("ON", "OFF"):
+            # Принудительно запускаем клиент, если не подключён
+            if not mqtt_client.connected:
+                mqtt_client.start()
+                # Ждём подключения до 2 секунд
+                for _ in range(20):
+                    if mqtt_client.connected:
+                        break
+                    time.sleep(0.1)
+                else:
+                    self.message_user(
+                        request, "MQTT клиент не подключился", level="ERROR"
+                    )
+                    return
+
+            topic = f"zigbee2mqtt/{obj.ieee_address}/set"  # используем IEEE, НЕ friendly_name
+            payload = {"state": command}
+            try:
+                if mqtt_client.publish(topic, payload):
+                    self.message_user(
+                        request,
+                        f"Команда {command} отправлена устройству {obj.friendly_name}",
+                    )
+                else:
+                    self.message_user(
+                        request, "Ошибка: MQTT не отправлено", level="ERROR"
+                    )
+            except Exception as e:
+                self.message_user(request, f"Ошибка: {e}", level="ERROR")
 
 
 @admin.register(SensorMeasurement)
