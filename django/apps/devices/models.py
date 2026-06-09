@@ -22,6 +22,9 @@ class DeviceType(models.TextChoices):
     WATER = "water", "Датчик протечки воды"
     VIBRATION = "vibration", "Датчик вибрации"
     BUTTON = "button", "Кнопка"
+    RAIN = "rain", "Датчик дождя"
+    RAIN_LIGNT = "RAIN_LIGNT", "Датчик дождя и освещенности"
+    VOLTAGE = "voltage", "Датчик напряжения"
     CUSTOM = "custom", "Кастомное устройство"
 
 
