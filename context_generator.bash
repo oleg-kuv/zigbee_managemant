@@ -2,7 +2,6 @@ echo "Привет. Жду ответы на русском. Высылаю ис
 echo "Мои устройства: Координатор - ZBDongle-P Zigbee3.0 USB Шлюз, Zigbee CC2652P USB Dongle (Информация на корпусе - zg-808z)
 Устройство - zg-227z (температура и влажность) (на чипе написано: TLSR8253 F512AT32 ZHBN2534 EW4005)"
 
-# Функция вывода файла
 function show_file() {
     file="$1"
     if [[ -s $file ]]; then
@@ -20,6 +19,9 @@ function show_file() {
             "txt") type="text";;
             "ini") type="ini";;
             "env") type="env";;
+            "js") type="javascript";;
+            "vue") type="vue";;
+            "ts") type="typescript";;
             "gitignore") type="gitignore";;
             *)
                 case "$name_without_ext" in
@@ -52,13 +54,18 @@ files=$(
     find ./ -type d \
         -name "__pycache__" -prune \
         -o -path ".pytest_cache/" -prune \
+        -o -path "./tests/*" -prune \
+        -o -path "./alembic/versions/*" -prune \
         -o -path "./postgres/data" -prune \
         -o -path "./postgres/data*" -prune \
         -o -path "./kafka/data" -prune \
         -o -path "./django/static" -prune \
         -o -path "./zigbee2mqtt/log" -prune \
         -o -path "./zookeeper" -prune \
+        -o -path "*/alembic/versions" -prune \
         -o -type d -name ".venv" -prune \
+        -o -type d -name ".kilo" -prune \
+        -o -type d -name "node_modules" -prune \
         -o -type d -name ".vscode" -prune \
         -o -type d -name "*.egg-info" -prune \
         -o -type d -name ".pytest_cache" -prune \
@@ -78,16 +85,25 @@ files=$(
         -o -type f -name "cansniffer-piklema_arm64" -prune \
         -o -type f -name "database.boltdb" -prune \
         -o -type f -name "database.db" -prune \
+        -o -type f -name "uv.lock" -prune \
+        -o -type f -name "*.sql" -prune \
         -o -type f -print
 )
-echo "Структура проекта"
+echo "# Структура проекта"
 echo '`````'
-echo "$files"
+for file in $files; do
+    echo "$(echo $file) ($(cat $file | wc -l | awk '{print $1}') строк)"
+done
 echo '`````'
 
 # Итоговый вывод
-echo "Содержимое файлов проекта:"
+echo "# Содержимое файлов проекта:"
 for file in $files; do
+    mime=$(file -bI "$file" 2>/dev/null)
+    if [[ $mime != text/* ]]; then
+        echo "Пропускаем нетекстовый файл: $file ($mime)"
+        continue
+    fi
     show_file $file
 done
 
