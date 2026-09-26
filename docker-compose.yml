@@ -379,7 +379,7 @@ services:
     environment:
       - TZ=Europe/Moscow
       - MQTT_SERVER=mqtt://mosquitto:1889
-      - ZIGBEE2MQTT_CONFIG_ADVANCED_LOG_LEVEL=warn
+      - ZIGBEE2MQTT_CONFIG_ADVANCED_LOG_LEVEL=warning
       - ZIGBEE2MQTT_CONFIG_ADVANCED_LOG_MAX_SIZE=10485760
 
     devices:
