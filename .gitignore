@@ -223,3 +223,4 @@ postgres/data*
 
 content.md
 structure.md
+context_conf.sh

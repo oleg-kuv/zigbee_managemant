@@ -18,7 +18,6 @@ export DEFAULT_PATH_MASK=
 
 export DEFAULT_CONTENT_SKIP="
 ./django/apps/*/migrations/*.py
-./grafana/provisioning/*
 ./sensor_simulator/*
 ./zigbee2mqtt/database.db
 ./.gitignore

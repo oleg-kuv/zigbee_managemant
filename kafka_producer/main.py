@@ -163,8 +163,6 @@ class MQTTKafkaBridge:
         if "bridge" in msg.topic:
             return
 
-        self.message_counter += 1
-
         try:
             # Парсим JSON сообщение
             payload = json.loads(msg.payload.decode("utf-8"))
@@ -174,6 +172,9 @@ class MQTTKafkaBridge:
 
             # Отправляем в Kafka
             self._send_to_kafka(enriched_message)
+
+            # Инкрементируем счетчик ТОЛЬКО после успешной отправки
+            self.message_counter += 1
 
             # Логируем статистику каждые 100 сообщений или каждые 30 секунд
             current_time = time.time()
@@ -267,6 +268,11 @@ class MQTTKafkaBridge:
             key = message["metadata"]["mqtt_topic"].encode("utf-8")
             value = json.dumps(message).encode("utf-8")
 
+            # Добавляем отладочный лог перед отправкой
+            logger.debug(
+                f"Producing to {self.config.kafka_topic}, key: {key.decode('utf-8')}"
+            )
+
             self.kafka_producer.produce(
                 topic=self.config.kafka_topic,
                 key=key,
@@ -275,14 +281,22 @@ class MQTTKafkaBridge:
                 timestamp=int(time.time() * 1000),
             )
 
+            # poll(0) обслуживает очередь событий librdkafka
+            # Без него сообщения могут застревать во внутреннем буфере и никогда не уходить в сеть
+            self.kafka_producer.poll(0)
+
             # Периодически flush для гарантии доставки
-            if self.message_counter % 100 == 0:
+            if self.message_counter % 50 == 0 and self.message_counter > 0:
+                logger.info(
+                    f"Flushing Kafka producer (message #{self.message_counter})"
+                )
                 self.kafka_producer.flush(timeout=1)
 
         except BufferError as e:
             logger.warning(f"Kafka producer queue is full: {e}")
             # Ждем и пробуем снова
             self.kafka_producer.flush(timeout=5)
+            self.kafka_producer.poll(0)
             self._send_to_kafka(message)  # Рекурсивный вызов
         except Exception as e:
             logger.error(f"Failed to send message to Kafka: {e}", exc_info=True)
@@ -290,10 +304,14 @@ class MQTTKafkaBridge:
     def _kafka_delivery_callback(self, err, msg):
         """Callback для подтверждения доставки в Kafka"""
         if err is not None:
-            logger.error(f"Message delivery failed: {err}")
-        # else:
-        #     logger.debug(f"Message delivered to {msg.topic()} "
-        #                  f"[partition {msg.partition()}]")
+            logger.error(
+                f"Message delivery failed: {err} (topic: {msg.topic() if msg else 'unknown'})"
+            )
+        else:
+            # Включаем логирование успешной доставки для диагностики
+            logger.info(
+                f"✓ Delivered to {msg.topic()} [partition {msg.partition()}] at offset {msg.offset()}"
+            )
 
     def _signal_handler(self, signum, frame):
         """Обработчик сигналов для graceful shutdown"""
@@ -361,8 +379,12 @@ class MQTTKafkaBridge:
                 # Периодически проверяем состояние
                 time.sleep(1)
 
+                # регулярный poll(0) в основном цикле
+                # Необходим для корректной работы background-потоков confluent-kafka
+                self.kafka_producer.poll(0)
+
                 # Периодический flush Kafka producer
-                if self.message_counter % 50 == 0:
+                if self.message_counter % 50 == 0 and self.message_counter > 0:
                     self.kafka_producer.flush(timeout=0.1)
 
         except KeyboardInterrupt:
