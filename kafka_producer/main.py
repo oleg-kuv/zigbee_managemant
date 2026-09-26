@@ -161,7 +161,6 @@ class MQTTKafkaBridge:
         """Callback при получении сообщения из MQTT"""
         # Пропускаем bridge топики
         if "bridge" in msg.topic:
-            logger.debug(f"Skipping bridge topic: {msg.topic}")
             return
 
         self.message_counter += 1

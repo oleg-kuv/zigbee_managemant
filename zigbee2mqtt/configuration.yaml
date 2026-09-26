@@ -14,7 +14,7 @@ frontend:
   host: 127.0.0.1
   port: 8082
 advanced:
-  log_level: warn
+  log_level: warning
   output: json
   log_symlinks: false  # Отключаем символические ссылки
   log_file: /app/log/zigbee2mqtt.log
