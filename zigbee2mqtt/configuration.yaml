@@ -14,12 +14,17 @@ frontend:
   host: 127.0.0.1
   port: 8082
 advanced:
-  log_level: info
+  log_level: warning
   output: json
+  log_symlinks: false  # Отключаем символические ссылки
+  log_file: /app/log/zigbee2mqtt.log
+  log_max_size: 10485760  # 10 MB
+  log_file_count: 3  # Хранить только 3 файла
   output_template: >-
     {"metadata": {"ieee_address": "{{ device.ieee_address }}", "friendly_name":
     "{{ friendly_name }}", "model": "{{ device.model }}" }, "timestamp": {{
     now() | timestamp }}, "data": {{ value_json | tojson }} }
+
 devices:
   '0xa4c138e53b478e15':
     friendly_name: '0xa4c138e53b478e15'

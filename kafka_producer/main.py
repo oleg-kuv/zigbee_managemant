@@ -11,14 +11,14 @@ import socket
 import sys
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import paho.mqtt.client as mqtt
 from confluent_kafka import Producer
 
 # Настройка логирования
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -32,8 +32,8 @@ class KafkaProducerConfig:
     mqtt_topic: str
     kafka_bootstrap_servers: str
     kafka_topic: str
-    mqtt_username: Optional[str] = None
-    mqtt_password: Optional[str] = None
+    mqtt_username: str | None = None
+    mqtt_password: str | None = None
 
     @classmethod
     def from_env(cls) -> "KafkaProducerConfig":
@@ -161,7 +161,6 @@ class MQTTKafkaBridge:
         """Callback при получении сообщения из MQTT"""
         # Пропускаем bridge топики
         if "bridge" in msg.topic:
-            logger.debug(f"Skipping bridge topic: {msg.topic}")
             return
 
         self.message_counter += 1
@@ -197,9 +196,7 @@ class MQTTKafkaBridge:
         """Callback для логов MQTT (только для отладки)"""
         if level == mqtt.MQTT_LOG_DEBUG:
             logger.debug(f"MQTT: {buf}")
-        elif level == mqtt.MQTT_LOG_INFO:
-            logger.info(f"MQTT: {buf}")
-        elif level == mqtt.MQTT_LOG_NOTICE:
+        elif level == mqtt.MQTT_LOG_INFO or level == mqtt.MQTT_LOG_NOTICE:
             logger.info(f"MQTT: {buf}")
         elif level == mqtt.MQTT_LOG_WARNING:
             logger.warning(f"MQTT: {buf}")
@@ -207,8 +204,8 @@ class MQTTKafkaBridge:
             logger.error(f"MQTT: {buf}")
 
     def _enrich_message(
-        self, mqtt_topic: str, payload: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, mqtt_topic: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Обогащение сообщения метаданными.
         Извлекает IEEE адрес из названия топика.
@@ -231,7 +228,7 @@ class MQTTKafkaBridge:
         }
 
     def _detect_source(
-        self, mqtt_topic: str, payload: Dict[str, Any], ieee_address: str
+        self, mqtt_topic: str, payload: dict[str, Any], ieee_address: str
     ) -> str:
         """
         Определение источника данных на основе полей payload.
@@ -263,7 +260,7 @@ class MQTTKafkaBridge:
         else:
             return f"zigbee_device:{ieee_address}"
 
-    def _send_to_kafka(self, message: Dict[str, Any]):
+    def _send_to_kafka(self, message: dict[str, Any]):
         """Отправка сообщения в Kafka"""
         try:
             # Используем топик устройства как ключ для партиционирования

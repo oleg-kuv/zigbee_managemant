@@ -1,4 +1,9 @@
 version: "3.8"
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 x-common-variables: &common-variables
   COMPOSE_PROFILES: ${COMPOSE_PROFILES:-dev}
@@ -44,6 +49,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
 
   redis:
     image: redis:7-alpine
@@ -55,6 +61,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
 
   kafka:
     profiles:
@@ -113,6 +120,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 90s
+    logging: *default-logging
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -133,6 +141,7 @@ services:
 #      - ./zookeeper/data:/var/lib/zookeeper/data
 #      - ./zookeeper/logs:/var/lib/zookeeper/log
 #      - ./zookeeper/datalog:/var/lib/zookeeper/datalog
+    logging: *default-logging
 
   kafka-ui:
     profiles:
@@ -152,6 +161,7 @@ services:
       - kafka
       - zookeeper
     restart: unless-stopped
+    logging: *default-logging
 
   mosquitto:
     image: eclipse-mosquitto:2
@@ -183,6 +193,7 @@ services:
       - ./mosquitto/config:/mosquitto/config
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
+    logging: *default-logging
 
   grafana:
     profiles:
@@ -226,6 +237,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    logging: *default-logging
 
   # --- PROFILE: dev (только для разработки) ---
   sensor-simulator:
@@ -246,6 +258,7 @@ services:
     command: python -m main
     volumes:
       - ./sensor_simulator:/app
+    logging: *default-logging
 
   # --- PROFILE: production (для реальных устройств) ---
   kafka-producer:
@@ -266,6 +279,7 @@ services:
 
     restart: unless-stopped
     command: python -m main
+    logging: *default-logging
 
   kafka-consumer:
     profiles:
@@ -286,6 +300,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./kafka_consumer:/app
+    logging: *default-logging
   admin-panel:
     profiles:
       - processing
@@ -331,6 +346,7 @@ services:
             python manage.py collectstatic --noinput &&
             python manage.py runserver 0.0.0.0:8000
             #gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    logging: *default-logging
   nginx:
     profiles:
       - processing
@@ -347,6 +363,7 @@ services:
     depends_on:
       admin-panel:
         condition: service_healthy
+    logging: *default-logging
 
   zigbee2mqtt:
     profiles:
@@ -362,11 +379,15 @@ services:
     environment:
       - TZ=Europe/Moscow
       - MQTT_SERVER=mqtt://mosquitto:1889
+      - ZIGBEE2MQTT_CONFIG_ADVANCED_LOG_LEVEL=warning
+      - ZIGBEE2MQTT_CONFIG_ADVANCED_LOG_MAX_SIZE=10485760
+
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
     depends_on:
       mosquitto:
         condition: service_healthy
+    logging: *default-logging
 
 volumes:
   postgres_data:
